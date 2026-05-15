@@ -11,6 +11,10 @@ import (
 	probing "github.com/prometheus-community/pro-bing"
 )
 
+const HA_API_URL = "https://ha.krabice.online/api/"
+const DSM_API_URL = "https://kostka-cukru.lan:5001/webapi/entry.cgi"
+const PVE_API_URL = "https://pve.lan:8006/api2/json/"
+
 func ping(host string) bool {
 	fmt.Printf("Starting ping for %s\n", host)
 	pinger, err := probing.NewPinger(host)
@@ -138,4 +142,35 @@ func getPcStates() []PcState {
 		{Name: "bad-boi", Online: ping("bad-boi.lan")},
 		{Name: "media-box", Online: ping("media-box.lan")},
 	}
+}
+
+func getPveMetrics() PveMetrics {
+	fmt.Println("Updating PVE Metrics...")
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("%scluster/resources?type=node", PVE_API_URL), nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Authorization", os.Getenv("PVE_AUTH"))
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	var pveMetrics PveMetrics
+
+	json.NewDecoder(resp.Body).Decode(&pveMetrics)
+
+	for i, node := range pveMetrics.Data {
+		// pveMetrics.Data[i].Cpu = node.Cpu * 100
+		// pveMetrics.Data[i].Maxcpu = node.Maxcpu * 100
+		// pveMetrics.Data[i].Mem = node.Mem / (1024 * 1024 * 1024)
+		// pveMetrics.Data[i].Maxmem = node.Maxmem / (1024 * 1024 * 1024)
+		// pveMetrics.Data[i].Disk = node.Disk / (1024 * 1024 * 1024)
+		// pveMetrics.Data[i].Maxdisk = node.Maxdisk / (1024 * 1024 * 1024)
+		fmt.Printf("Node: %s, CPU: %.2f%%, Mem: %dGB, Disk: %dGB\n", node.Node, node.Cpu, pveMetrics.Data[i].Mem, pveMetrics.Data[i].Disk)
+	}
+
+	return pveMetrics
 }

@@ -16,6 +16,8 @@ func (c *DataCache) Start(interval time.Duration) {
 		for {
 			fmt.Println("Updating data cache...")
 
+			pveMetrics := getPveMetrics()
+
 			ha_states, err := getHaStateMap()
 			if err != nil {
 				panic(err)
@@ -26,7 +28,7 @@ func (c *DataCache) Start(interval time.Duration) {
 			pc_states := getPcStates()
 
 			c.mu.Lock()
-			c.data = &TemplateData{HaStateMap: ha_states, DsmStorage: dsm_storage, PcOnline: pc_states}
+			c.data = &TemplateData{HaStateMap: ha_states, DsmStorage: dsm_storage, PcOnline: pc_states, PveMetrics: pveMetrics}
 			c.mu.Unlock()
 
 			fmt.Printf("Data cache updated. Next update in %v\n", interval)

@@ -17,9 +17,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const HA_API_URL = "https://ha.krabice.online/api/"
-const DSM_API_URL = "https://kostka-cukru.lan:5001/webapi/entry.cgi"
-
 var tr = &http.Transport{
 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 }

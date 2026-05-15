@@ -51,4 +51,17 @@ type TemplateData struct {
 	HaStateMap HaStateMap
 	DsmStorage DsmStorage
 	PcOnline   []PcState
+	PveMetrics PveMetrics
+}
+
+type PveMetrics struct {
+	Data []struct {
+		Node    string  `json:"node"`
+		Cpu     float64 `json:"cpu"`
+		Maxcpu  float64 `json:"maxcpu"`
+		Mem     int     `json:"mem"`
+		Maxmem  int     `json:"maxmem"`
+		Disk    int     `json:"disk"`
+		Maxdisk int     `json:"maxdisk"`
+	} `json:"data"`
 }
