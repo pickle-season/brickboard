@@ -3,11 +3,8 @@ package main
 //go:generate go run saml.dev/gome-assistant/cmd/generate
 import (
 	"bytes"
-	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
-	"sync"
 	"text/template"
 	"time"
 
@@ -16,55 +13,12 @@ import (
 	"github.com/go-chi/render"
 
 	"crypto/tls"
-	"encoding/json"
-
-	"strconv"
 
 	"github.com/joho/godotenv"
-	probing "github.com/prometheus-community/pro-bing"
 )
 
 const HA_API_URL = "https://ha.krabice.online/api/"
 const DSM_API_URL = "https://kostka-cukru.lan:5001/webapi/entry.cgi"
-
-type DataCache struct {
-	mu   sync.RWMutex
-	data *TemplateData
-}
-
-type HaStateMap struct {
-	Temperature HAState
-	Humidity    HAState
-	Co2         HAState
-	ExternalIp  HAState
-}
-
-type HAState struct {
-	EntityId   string `json:"entity_id"`
-	State      string `json:"state"`
-	Attributes struct {
-		UnitOfMeasurement string `json:"unit_of_measurement"`
-	} `json:"attributes"`
-}
-
-type DsmAuth struct {
-	Data struct {
-		Did string `json:"did"`
-		Sid string `json:"sid"`
-	} `json:"data"`
-	Success bool `json:"success"`
-}
-
-type PcState struct {
-	Name   string
-	Online bool
-}
-
-type TemplateData struct {
-	HaStateMap HaStateMap
-	DsmStorage DsmStorage
-	PcOnline   []PcState
-}
 
 var tr = &http.Transport{
 	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -72,7 +26,7 @@ var tr = &http.Transport{
 
 var client = &http.Client{Transport: tr}
 
-func makeHttp(ha_state_map HaStateMap, dsm_storage DsmStorage) string {
+func _makeHttp(ha_state_map HaStateMap, dsm_storage DsmStorage) string {
 	tmpl, err := template.ParseFiles(filepath.Join("static", "templates", "index.gohtml"))
 	if err != nil {
 		panic(err)
@@ -84,181 +38,6 @@ func makeHttp(ha_state_map HaStateMap, dsm_storage DsmStorage) string {
 		panic(err)
 	}
 	return buf.String()
-}
-
-func (c *DataCache) Get() *TemplateData {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.data
-}
-
-func ping(host string) bool {
-	fmt.Printf("Starting ping for %s\n", host)
-	pinger, err := probing.NewPinger(host)
-	if err != nil {
-		fmt.Printf("Ping failed: %+v\n", err)
-		return false
-	}
-	pinger.Count = 3
-	pinger.Timeout = time.Second * 10
-	if os.Getenv("SOCK_PRIV") == "1" {
-		pinger.SetPrivileged(true)
-	}
-	err = pinger.Run() // Blocks until finished.
-	if err != nil {
-		fmt.Printf("Ping failed: %+v\n", err)
-		return false
-	}
-	stats := pinger.Statistics() // get send/receive/duplicate/rtt stats
-	fmt.Printf("Ping stats: %+v\n", stats)
-	return stats.PacketsRecv > 0
-}
-
-func getPcStates() []PcState {
-	return []PcState{
-		{Name: "cat-heater", Online: ping("cat-heater.lan")},
-		{Name: "bad-boi", Online: ping("bad-boi.lan")},
-		{Name: "media-box", Online: ping("media-box.lan")},
-	}
-}
-
-func (c *DataCache) Start(interval time.Duration) {
-	fmt.Println("Starting cache update routine...")
-	go func() {
-		fmt.Println("Getting DSM auth...")
-		dsm_auth := dsmLogin(os.Getenv("DSM_ACCOUNT"), os.Getenv("DSM_PASSWORD"))
-		fmt.Printf("DSM Auth: %+v\n", dsm_auth)
-
-		for {
-			fmt.Println("Updating data cache...")
-
-			ha_states, err := getHaStateMap()
-			if err != nil {
-				panic(err)
-			}
-
-			dsm_storage := dsmGetStorage(dsm_auth)
-
-			pc_states := getPcStates()
-
-			c.mu.Lock()
-			c.data = &TemplateData{HaStateMap: ha_states, DsmStorage: dsm_storage, PcOnline: pc_states}
-			c.mu.Unlock()
-
-			time.Sleep(interval)
-		}
-	}()
-}
-
-func getHaState(entityId string) (HAState, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%sstates/%s", HA_API_URL, entityId), nil)
-	if err != nil {
-		panic(err)
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", os.Getenv("HA_AUTH_TOKEN")))
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	var haState HAState
-
-	json.NewDecoder(resp.Body).Decode(&haState)
-	return haState, nil
-}
-
-func dsmLogin(account string, passwd string) DsmAuth {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s?api=SYNO.API.Auth&version=6&method=login&account=%s&passwd=%s", DSM_API_URL, account, passwd), nil)
-	if err != nil {
-		panic(err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	defer resp.Body.Close()
-
-	var dsm_resp DsmAuth
-
-	json.NewDecoder(resp.Body).Decode(&dsm_resp)
-	return dsm_resp
-}
-
-type DsmStorage struct {
-	Data struct {
-		Volumes []struct {
-			Size struct {
-				Total string `json:"total"`
-				Used  string `json:"used"`
-			} `json:"size"`
-		} `json:"volumes"`
-	} `json:"data"`
-	Success bool `json:"success"`
-}
-
-func dsmGetStorage(auth DsmAuth) DsmStorage {
-	fmt.Println("Getting DSM storage info...")
-
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s?api=SYNO.Storage.CGI.Storage&version=1&method=load_info&_sid=%s", DSM_API_URL, auth.Data.Sid), nil)
-	if err != nil {
-		panic(err)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
-	}
-	var dsmStorage DsmStorage
-	json.NewDecoder(resp.Body).Decode(&dsmStorage)
-
-	used, err := strconv.Atoi(dsmStorage.Data.Volumes[0].Size.Used)
-	if err != nil {
-		panic(err)
-	}
-	total, err := strconv.Atoi(dsmStorage.Data.Volumes[0].Size.Total)
-	if err != nil {
-		panic(err)
-	}
-
-	usedGB := used / (1024 * 1024 * 1024)
-	totalGB := total / (1024 * 1024 * 1024)
-
-	dsmStorage.Data.Volumes[0].Size.Used = fmt.Sprintf("%v", usedGB)
-	dsmStorage.Data.Volumes[0].Size.Total = fmt.Sprintf("%v", totalGB)
-
-	fmt.Println("DSM Storage:", dsmStorage)
-
-	return dsmStorage
-}
-
-func getHaStateMap() (HaStateMap, error) {
-	fmt.Println("Updating HA state map...")
-
-	temperature, err := getHaState("sensor.jesus_sensor_living_room_temperature")
-	if err != nil {
-		return HaStateMap{}, err
-	}
-	humidity, err := getHaState("sensor.jesus_sensor_living_room_humidity")
-	if err != nil {
-		return HaStateMap{}, err
-	}
-	co2, err := getHaState("sensor.jesus_sensor_living_room_co2")
-	if err != nil {
-		return HaStateMap{}, err
-	}
-	external_ip, err := getHaState("sensor.archer_ax23_external_ip")
-	if err != nil {
-		return HaStateMap{}, err
-	}
-
-	fmt.Printf("temp: %+v\nhumidity: %+v\nco2: %+v\nexternal_ip: %+v\n", temperature, humidity, co2, external_ip)
-	return HaStateMap{
-		Temperature: temperature,
-		Humidity:    humidity,
-		Co2:         co2,
-		ExternalIp:  external_ip,
-	}, nil
 }
 
 func main() {
@@ -274,7 +53,6 @@ func main() {
 	r.Use(middleware.Logger)
 
 	r.Get("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		//w.Header().Set("Content-Type", "text/css")
 		http.ServeFile(w, r, "static/favicon.ico")
 	})
 	r.Get("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -289,23 +67,10 @@ func main() {
 	r.Get("/data", func(w http.ResponseWriter, r *http.Request) {
 		data := c.Get()
 		render.JSON(w, r, data)
-		//w.Write([]byte(makeHttp(ha_states, dsm_storage)))
-
 	})
 
-	//entities.Sensor.JesusSensorLivingRoomTemperature
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		//http.ServeFile(w, r, filepath.Join("res", "index.html"))
-
-		// ha_states, err := getHaStateMap()
-		// if err != nil {
-		// 	panic(err)
-		// }
-
-		// dsm_storage := dsmGetStorage(dsm_auth)
-
-		//w.Write([]byte(makeHttp(ha_states, dsm_storage)))
 		http.ServeFile(w, r, filepath.Join("static", "index.html"))
 	})
 
