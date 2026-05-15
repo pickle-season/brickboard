@@ -55,15 +55,15 @@ type DsmAuth struct {
 	Success bool `json:"success"`
 }
 
-type PcOnline struct {
-	Cat_heater bool
-	Bad_boi    bool
+type PcState struct {
+	Name   string
+	Online bool
 }
 
 type TemplateData struct {
 	HaStateMap HaStateMap
 	DsmStorage DsmStorage
-	PcOnline   PcOnline
+	PcOnline   []PcState
 }
 
 var tr = &http.Transport{
@@ -101,7 +101,9 @@ func ping(host string) bool {
 	}
 	pinger.Count = 3
 	pinger.Timeout = time.Second * 10
-	pinger.SetPrivileged(true)
+	if os.Getenv("SOCK_PRIV") == "1" {
+		pinger.SetPrivileged(true)
+	}
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
 		fmt.Printf("Ping failed: %+v\n", err)
@@ -112,10 +114,11 @@ func ping(host string) bool {
 	return stats.PacketsRecv > 0
 }
 
-func getPcOnline() PcOnline {
-	return PcOnline{
-		Cat_heater: ping("cat-heater.lan"),
-		Bad_boi:    ping("bad-boi.lan"),
+func getPcStates() []PcState {
+	return []PcState{
+		{Name: "cat-heater", Online: ping("cat-heater.lan")},
+		{Name: "bad-boi", Online: ping("bad-boi.lan")},
+		{Name: "media-box", Online: ping("media-box.lan")},
 	}
 }
 
@@ -136,10 +139,10 @@ func (c *DataCache) Start(interval time.Duration) {
 
 			dsm_storage := dsmGetStorage(dsm_auth)
 
-			pc_online := getPcOnline()
+			pc_states := getPcStates()
 
 			c.mu.Lock()
-			c.data = &TemplateData{HaStateMap: ha_states, DsmStorage: dsm_storage, PcOnline: pc_online}
+			c.data = &TemplateData{HaStateMap: ha_states, DsmStorage: dsm_storage, PcOnline: pc_states}
 			c.mu.Unlock()
 
 			time.Sleep(interval)
@@ -228,6 +231,8 @@ func dsmGetStorage(auth DsmAuth) DsmStorage {
 }
 
 func getHaStateMap() (HaStateMap, error) {
+	fmt.Println("Updating HA state map...")
+
 	temperature, err := getHaState("sensor.jesus_sensor_living_room_temperature")
 	if err != nil {
 		return HaStateMap{}, err
@@ -245,6 +250,7 @@ func getHaStateMap() (HaStateMap, error) {
 		return HaStateMap{}, err
 	}
 
+	fmt.Printf("temp: %+v\nhumidity: %+v\nco2: %+v\nexternal_ip: %+v\n", temperature, humidity, co2, external_ip)
 	return HaStateMap{
 		Temperature: temperature,
 		Humidity:    humidity,
