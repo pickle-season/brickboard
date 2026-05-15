@@ -93,7 +93,7 @@ func (c *DataCache) Get() *TemplateData {
 }
 
 func ping(host string) bool {
-	fmt.Println("Starting ping...")
+	fmt.Printf("Starting ping for %s\n", host)
 	pinger, err := probing.NewPinger(host)
 	if err != nil {
 		fmt.Printf("Ping failed: %+v\n", err)
@@ -199,6 +199,8 @@ type DsmStorage struct {
 }
 
 func dsmGetStorage(auth DsmAuth) DsmStorage {
+	fmt.Println("Getting DSM storage info...")
+
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s?api=SYNO.Storage.CGI.Storage&version=1&method=load_info&_sid=%s", DSM_API_URL, auth.Data.Sid), nil)
 	if err != nil {
 		panic(err)
