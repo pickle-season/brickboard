@@ -25,7 +25,7 @@ import (
 )
 
 const HA_API_URL = "https://ha.krabice.online/api/"
-const DSM_API_URL = "https://kostka-cukru:5001/webapi/entry.cgi"
+const DSM_API_URL = "https://kostka-cukru.lan:5001/webapi/entry.cgi"
 
 type DataCache struct {
 	mu   sync.RWMutex
@@ -93,14 +93,18 @@ func (c *DataCache) Get() *TemplateData {
 }
 
 func ping(host string) bool {
+	fmt.Println("Starting ping...")
 	pinger, err := probing.NewPinger(host)
 	if err != nil {
+		fmt.Printf("Ping failed: %+v\n", err)
 		return false
 	}
 	pinger.Count = 3
-	pinger.Timeout = time.Second * 5
+	pinger.Timeout = time.Second * 10
+	pinger.SetPrivileged(true)
 	err = pinger.Run() // Blocks until finished.
 	if err != nil {
+		fmt.Printf("Ping failed: %+v\n", err)
 		return false
 	}
 	stats := pinger.Statistics() // get send/receive/duplicate/rtt stats
@@ -110,13 +114,15 @@ func ping(host string) bool {
 
 func getPcOnline() PcOnline {
 	return PcOnline{
-		Cat_heater: ping("cat-heater"),
-		Bad_boi:    ping("bad-boi"),
+		Cat_heater: ping("cat-heater.lan"),
+		Bad_boi:    ping("bad-boi.lan"),
 	}
 }
 
 func (c *DataCache) Start(interval time.Duration) {
+	fmt.Println("Starting cache update routine...")
 	go func() {
+		fmt.Println("Getting DSM auth...")
 		dsm_auth := dsmLogin(os.Getenv("DSM_ACCOUNT"), os.Getenv("DSM_PASSWORD"))
 		fmt.Printf("DSM Auth: %+v\n", dsm_auth)
 
@@ -252,7 +258,7 @@ func main() {
 	}
 
 	c := &DataCache{}
-	c.Start(time.Duration(5) * time.Second)
+	c.Start(time.Duration(10) * time.Second)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -293,5 +299,5 @@ func main() {
 		http.ServeFile(w, r, filepath.Join("static", "index.html"))
 	})
 
-	http.ListenAndServe("0.0.0.0:3000", r)
+	http.ListenAndServe("0.0.0.0:3001", r)
 }
