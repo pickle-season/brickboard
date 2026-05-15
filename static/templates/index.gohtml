@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Brickboard</title>
+    <script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
+    <script src="/static/main.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Brickboard</h1>
+    <h2>🌡️ Temperature: {{.HaStateMap.Temperature.State}} {{.HaStateMap.Temperature.Attributes.UnitOfMeasurement}}</h2>
+    <h2>💧 Humidity: {{.HaStateMap.Humidity.State}} {{.HaStateMap.Humidity.Attributes.UnitOfMeasurement}}</h2>
+    <h2>💨 CO₂: {{.HaStateMap.Co2.State}} {{.HaStateMap.Co2.Attributes.UnitOfMeasurement}}</h2>
+    <h2>🌐 External IP: {{.HaStateMap.ExternalIp.State}}</h2>
+    <h2>💾 Storage: {{(index .DsmStorage.Data.Volumes 0).Size.Used}} / {{(index .DsmStorage.Data.Volumes 0).Size.Total}}</h2>
+    <script>
+        twemoji.parse(document.body);
+    </script>
+</body>
+</html>

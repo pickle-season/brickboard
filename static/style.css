@@ -1,0 +1,22 @@
+body {
+    background-color: black;
+}
+
+h1, h2 {
+    color: white;
+}
+
+img {
+    width: 3%;
+    height: 3%;
+}
+
+ul {
+    color: white;
+}
+
+/* .container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+} */

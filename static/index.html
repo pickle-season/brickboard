@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Brickboard</title>
+    <script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
+    <script src="/static/main.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <h1>Brickboard</h1>
+    <div class="container">
+    <h2>🌡️ Temperature: <span id="temperature">Loading...</span></h2>
+    <h2>💧 Humidity: <span id="humidity">Loading...</span></h2>
+    <h2>💨 CO₂: <span id="co2">Loading...</span></h2>
+    <h2>🌐 External IP: <span id="external-ip">Loading...</span></h2>
+    <h2>💾 Storage: <span id="storage">Loading...</span></h2>
+    <h2>PC Status:</h2>
+    <ul >
+        <li> <h2>cat-heater: <span id="cat-heater">Loading...</span></h2> </li>
+        <li> <h2>bad-boi: <span id="bad-boi">Loading...</span></h2> </li>
+    </ul>
+
+    </div>
+    <script>
+        twemoji.parse(document.body);
+    </script>
+</body>
+
+</html>
