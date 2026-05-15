@@ -7,16 +7,29 @@ h1, h2 {
 }
 
 img {
-    width: 3%;
+    /* width: 3%; */
     height: 3%;
+    vertical-align: -20%;
+    /* margin-top: 1rem; */
 }
 
 ul {
     color: white;
 }
 
-/* .container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-} */
+.grid {
+    overflow: hidden;
+    /* display: flex;
+    gap: 2rem; */
+    /* grid-template-columns: repeat(3, 1fr);
+    gap: 1rem; */
+}
+
+.column {
+    /* display: flex;
+    flex-direction: column; */
+    float: left;
+    width: 33.33%;
+    padding-right: 1rem;
+    box-sizing: border-box;
+}

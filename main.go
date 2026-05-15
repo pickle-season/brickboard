@@ -213,8 +213,8 @@ func dsmGetStorage(auth DsmAuth) DsmStorage {
 	usedGB := used / (1024 * 1024 * 1024)
 	totalGB := total / (1024 * 1024 * 1024)
 
-	dsmStorage.Data.Volumes[0].Size.Used = fmt.Sprintf("%v GB", usedGB)
-	dsmStorage.Data.Volumes[0].Size.Total = fmt.Sprintf("%v GB", totalGB)
+	dsmStorage.Data.Volumes[0].Size.Used = fmt.Sprintf("%v", usedGB)
+	dsmStorage.Data.Volumes[0].Size.Total = fmt.Sprintf("%v", totalGB)
 
 	return dsmStorage
 }
