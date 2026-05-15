@@ -222,6 +222,8 @@ func dsmGetStorage(auth DsmAuth) DsmStorage {
 	dsmStorage.Data.Volumes[0].Size.Used = fmt.Sprintf("%v", usedGB)
 	dsmStorage.Data.Volumes[0].Size.Total = fmt.Sprintf("%v", totalGB)
 
+	fmt.Println("DSM Storage:", dsmStorage)
+
 	return dsmStorage
 }
 
